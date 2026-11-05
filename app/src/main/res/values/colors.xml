@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- 亮色主题 -->
+    <color name="bg">#FFFFFFFF</color>
+    <color name="ink">#FF111214</color>
+    <color name="ink_2">#FF4A4D52</color>
+    <color name="ink_3">#FF9A9EA5</color>
+    <color name="ink_4">#FFB6BAC1</color>
+    <color name="line">#FFE6E7EA</color>
+    <color name="card">#FFF2F2F4</color>
+    <color name="card_2">#FFECEEF1</color>
+    <!-- 分段控件（Pill 组）底槽 -->
+    <color name="seg_track">#FFF1F2F4</color>
+    <color name="accent">#FFE8663A</color>
+    <color name="tab_fg">#FF3C3F45</color>
+    <color name="on_ink">#FFFFFFFF</color>
+    <color name="hairline">#10000000</color>
+    <color name="hairline_2">#12000000</color>
+    <color name="toast_bg">#F0181A1E</color>
+
+    <!-- 启动/登录页 -->
+    <color name="splash_bg">#FF15161A</color>
+
+    <!-- 会员卡 -->
+    <color name="vip_card">#FF22252A</color>
+    <color name="vip_blob">#FFE3E4E7</color>
+    <color name="vip_text">#FFF4F5F7</color>
+    <color name="vip_text_2">#FFE8E9EC</color>
+    <color name="vip_more">#FFC9CCD2</color>
+
+    <!-- 固定色板：课表 / 圈子标签 -->
+    <color name="tint_blue_bg">#FFDFE7F5</color>
+    <color name="tint_blue_fg">#FF26374F</color>
+    <color name="tint_purple_bg">#FFECE1F6</color>
+    <color name="tint_purple_fg">#FF463264</color>
+    <color name="tint_sand_bg">#FFFDF0CD</color>
+    <color name="tint_sand_fg">#FF6A530D</color>
+    <color name="tint_clay_bg">#FFFBE2DA</color>
+    <color name="tint_clay_fg">#FF7A3823</color>
+    <color name="tint_sage_bg">#FFDCECDF</color>
+    <color name="tint_sage_fg">#FF255034</color>
+    <color name="tint_rose_bg">#FFF8DBE4</color>
+    <color name="tint_rose_fg">#FF7A2740</color>
+</resources>

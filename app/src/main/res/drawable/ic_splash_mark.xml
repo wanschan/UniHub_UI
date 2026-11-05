@@ -1,0 +1,32 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 白色圆盘，与自绘开屏的门盘同形 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,54 m-54,0 a54,54 0 1,0 108,0 a54,54 0 1,0 -108,0" />
+    <!-- 品牌气泡，等比缩到 54% 居中 -->
+    <group
+        android:scaleX="0.54"
+        android:scaleY="0.54"
+        android:translateX="27"
+        android:translateY="27">
+        <path
+            android:fillColor="#111214"
+            android:pathData="M30,26 L70,26 A12,12 0 0,1 82,38 L82,57 A12,12 0 0,1 70,69 L52,69 L40,80 L40,69 L30,69 A12,12 0 0,1 18,57 L18,38 A12,12 0 0,1 30,26 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M36,44 m-3.4,0 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M50,44 m-3.4,0 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M64,44 m-3.4,0 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0" />
+        <path
+            android:fillColor="#E8663A"
+            android:pathData="M50,53 m-2.6,0 a2.6,2.6 0 1,0 5.2,0 a2.6,2.6 0 1,0 -5.2,0" />
+    </group>
+</vector>

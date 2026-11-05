@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- 暗色主题 -->
+    <color name="bg">#FF0D0F13</color>
+    <color name="ink">#FFF4F5F7</color>
+    <color name="ink_2">#FFA7ACB4</color>
+    <color name="ink_3">#FF70757D</color>
+    <color name="ink_4">#FF6D727A</color>
+    <color name="line">#FF282C33</color>
+    <color name="card">#FF171A1F</color>
+    <color name="card_2">#FF1E2229</color>
+    <!-- 分段控件（Pill 组）底槽 -->
+    <color name="seg_track">#FF1E2229</color>
+    <color name="accent">#FFFF7A4D</color>
+    <color name="tab_fg">#FFA3A8B0</color>
+    <color name="on_ink">#FF0D0F13</color>
+    <color name="hairline">#13FFFFFF</color>
+    <color name="hairline_2">#13FFFFFF</color>
+    <color name="toast_bg">#F01E2229</color>
+
+    <color name="splash_bg">#FF15161A</color>
+
+    <color name="vip_card">#FF1D2128</color>
+    <color name="vip_blob">#FF23272E</color>
+    <color name="vip_text">#FFF4F5F7</color>
+    <color name="vip_text_2">#FFE8E9EC</color>
+    <color name="vip_more">#FFC9CCD2</color>
+
+    <color name="tint_blue_bg">#FFDFE7F5</color>
+    <color name="tint_blue_fg">#FF26374F</color>
+    <color name="tint_purple_bg">#FFECE1F6</color>
+    <color name="tint_purple_fg">#FF463264</color>
+    <color name="tint_sand_bg">#FFFDF0CD</color>
+    <color name="tint_sand_fg">#FF6A530D</color>
+    <color name="tint_clay_bg">#FFFBE2DA</color>
+    <color name="tint_clay_fg">#FF7A3823</color>
+    <color name="tint_sage_bg">#FFDCECDF</color>
+    <color name="tint_sage_fg">#FF255034</color>
+    <color name="tint_rose_bg">#FFF8DBE4</color>
+    <color name="tint_rose_fg">#FF7A2740</color>
+</resources>
