@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- 登录验证码走 Brevo 事务邮件接口 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -10,12 +13,12 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.CampusLink">
+        android:theme="@style/Theme.UniHub">
 
         <activity
             android:name=".ui.LaunchActivity"
             android:exported="true"
-            android:theme="@style/Theme.CampusLink.Splash">
+            android:theme="@style/Theme.UniHub.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -23,9 +26,22 @@
         </activity>
 
         <activity
+            android:name=".ui.LoginActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.UniHub" />
+
+        <activity
             android:name=".MainActivity"
             android:exported="false"
-            android:theme="@style/Theme.CampusLink" />
+            android:theme="@style/Theme.UniHub" />
+
+        <!-- 实景地图：WebView 渲染 assets/map/campus.html 里的 3D 校区 -->
+        <activity
+            android:name=".ui.CampusMapActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout"
+            android:theme="@style/Theme.UniHub" />
 
     </application>
 

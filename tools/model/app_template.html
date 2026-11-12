@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>实景地图</title>
+<style>
+  :root{
+    --bg:#ffffff; --ink:#111214; --ink2:#4a4d52; --ink3:#9a9ea5;
+    --line:#e6e7ea; --card:#f2f2f4; --accent:#e8663a;
+    --sky1:#ffffff; --sky2:#eef2f6; --sky3:#dfe6ec; --ground:#c9cfc4;
+  }
+  body.dark{
+    --bg:#0d0f13; --ink:#f4f5f7; --ink2:#a7acb4; --ink3:#70757d;
+    --line:#282c33; --card:#171a1f; --accent:#ff7a4d;
+    --sky1:#1b1f26; --sky2:#14171c; --sky3:#0d0f13; --ground:#22262a;
+  }
+  body.dusk{--sky1:#ffd7a6; --sky2:#e0a075; --sky3:#9d6f86}
+  body.dark.dusk{--sky1:#3a2c38; --sky2:#241f2b; --sky3:#12151b}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);
+    font-family:-apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;
+    -webkit-user-select:none;user-select:none}
+  #sky{position:fixed;z-index:0;inset:0;
+    background:radial-gradient(120% 90% at 62% 0%, var(--sky1) 0%, var(--sky2) 46%, var(--sky3) 100%);}
+  canvas{display:block;position:fixed;z-index:1;inset:0;touch-action:none}
+
+  #bar{position:fixed;z-index:20;left:50%;transform:translateX(-50%);bottom:12px;display:flex;gap:6px;
+    padding:5px;background:var(--bg);border:1.6px solid var(--ink);border-radius:15px;
+    box-shadow:0 6px 18px rgba(0,0,0,.10);max-width:calc(100vw - 24px)}
+  .chip{flex:0 0 auto;appearance:none;border:0;background:transparent;color:var(--ink2);
+    font-size:14px;font-weight:500;padding:9px 13px;border-radius:11px;font-family:inherit;
+    white-space:nowrap;transition:background .16s,color .16s;line-height:1.1}
+  .chip.on{background:var(--ink);color:var(--bg)}
+  .chip:active{opacity:.65}
+
+  #toast{position:fixed;z-index:30;left:50%;transform:translateX(-50%) translateY(-6px);top:14px;
+    background:var(--ink);color:var(--bg);font-size:13px;padding:9px 16px;border-radius:999px;
+    opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;max-width:80vw;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #toast.on{opacity:.94;transform:translateX(-50%) translateY(0)}
+
+  #loading{position:fixed;z-index:40;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;background:var(--bg);
+    color:var(--ink3);font-size:13px;transition:opacity .4s}
+  #loading.hide{opacity:0;pointer-events:none}
+  .dot{width:34px;height:34px;border-radius:50%;border:2.4px solid var(--line);
+    border-top-color:var(--accent);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="sky"></div>
+<div id="loading"><div class="dot"></div><div>正在加载校园模型</div></div>
+<div id="toast"></div>
+
+<div id="bar">
+  <button class="chip on" id="cNeighbor">周边</button>
+  <button class="chip" id="cDusk">黄昏</button>
+  <button class="chip" id="cRotate">环绕</button>
+  <button class="chip" id="cView">鸟瞰</button>
+</div>
+
+<script>/*__THREE__*/</script>
+<script>/*__ORBIT__*/</script>
+<script>/*__GLTF__*/</script>
+<script>
+const GLB_B64 = "__GLB_B64__";
+
+function b64buf(s){
+  const bin = atob(s), n = bin.length, u = new Uint8Array(n);
+  for(let i=0;i<n;i++) u[i] = bin.charCodeAt(i);
+  return u.buffer;
+}
+const QS = new URLSearchParams(location.search);
+if (QS.get('dark') === '1') document.body.classList.add('dark');
+
+// ---- 渲染器 -----------------------------------------------------------
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(46, window.innerWidth/window.innerHeight, 0.5, 3000);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.085;
+controls.rotateSpeed = 0.72;
+controls.zoomSpeed = 0.9;
+controls.enablePan = false;
+controls.minDistance = 26;
+controls.maxDistance = 460;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.autoRotateSpeed = 0.6;
+
+// ---- 光照 -------------------------------------------------------------
+const hemi = new THREE.HemisphereLight(0xcfe2f5, 0x4a4234, 0.62);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff4e2, 2.0);
+sun.position.set(118, 168, 84);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.00018;
+sun.shadow.normalBias = 0.55;
+const sc = sun.shadow.camera;
+sc.left = -160; sc.right = 160; sc.top = 160; sc.bottom = -160; sc.near = 20; sc.far = 560;
+sc.updateProjectionMatrix();
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0x9dc0e2, 0.55);
+fill.position.set(-140, 70, -120);
+scene.add(fill);
+
+let dusk = false;
+function applyPreset(on){
+  dusk = on;
+  document.body.classList.toggle('dusk', on);
+  if (on){
+    sun.color.setHex(0xffb47a); sun.intensity = 1.5; sun.position.set(150, 46, 62);
+    hemi.color.setHex(0xb7a0c4); hemi.groundColor.setHex(0x2c2620); hemi.intensity = 0.48;
+    fill.color.setHex(0x6f7fb0); fill.intensity = 0.4;
+    renderer.toneMappingExposure = 1.02;
+  } else {
+    sun.color.setHex(0xfff4e2); sun.intensity = 2.0; sun.position.set(118, 168, 84);
+    hemi.color.setHex(0xcfe2f5); hemi.groundColor.setHex(0x4a4234); hemi.intensity = 0.62;
+    fill.color.setHex(0x9dc0e2); fill.intensity = 0.55;
+    renderer.toneMappingExposure = 1.0;
+  }
+}
+
+// ---- 接地阴影 ---------------------------------------------------------
+(function addContactShadow(){
+  const S = 256, cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(S/2, S/2, 0, S/2, S/2, S/2);
+  rg.addColorStop(0.00, 'rgba(20,24,22,0.66)');
+  rg.addColorStop(0.34, 'rgba(20,24,22,0.48)');
+  rg.addColorStop(0.62, 'rgba(20,24,22,0.20)');
+  rg.addColorStop(0.84, 'rgba(20,24,22,0.05)');
+  rg.addColorStop(1.00, 'rgba(20,24,22,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, S, S);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.anisotropy = 4;
+  const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(92, 34),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.85 })
+  );
+  plane.rotation.x = -Math.PI / 2;
+  plane.position.set(0, 0.06, 0);
+  plane.renderOrder = 1;
+  scene.add(plane);
+})();
+
+// ---- 交互 -------------------------------------------------------------
+const cNeighbor = document.getElementById('cNeighbor');
+const cDusk     = document.getElementById('cDusk');
+const cRotate   = document.getElementById('cRotate');
+const cView     = document.getElementById('cView');
+const toastEl   = document.getElementById('toast');
+
+const floors = [];
+const neighbors = [];
+let toastTimer = null;
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('on'), 1500);
+}
+
+cNeighbor.onclick = () => {
+  const show = !cNeighbor.classList.contains('on');
+  cNeighbor.classList.toggle('on', show);
+  neighbors.forEach(n => n.visible = show);
+  toast(show ? '显示周边建筑' : '只看这一栋');
+};
+cDusk.onclick = () => {
+  const on = !cDusk.classList.contains('on');
+  cDusk.classList.toggle('on', on);
+  applyPreset(on);
+};
+cRotate.onclick = () => {
+  const on = !cRotate.classList.contains('on');
+  cRotate.classList.toggle('on', on);
+  controls.autoRotate = on;
+};
+
+// ---- 机身取景 ---------------------------------------------------------
+let focusBox = new THREE.Box3();
+let camTween = null;
+
+const _corners = [];
+function focusCorners(){
+  const mn = focusBox.min, mx = focusBox.max;
+  _corners.length = 0;
+  for (const x of [mn.x, mx.x]) for (const y of [mn.y, mx.y]) for (const z of [mn.z, mx.z])
+    _corners.push(new THREE.Vector3(x, y, z));
+  return _corners;
+}
+
+/** 沿 dir 方向后退，二分找到"刚好把所有角点框进画面"的距离 */
+function fitDir(dir, padY){
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  const center = focusBox.getCenter(new THREE.Vector3());
+  const corners = focusCorners();
+  const d = new THREE.Vector3(dir[0], dir[1], dir[2]).normalize();
+  const marginX = 0.93, marginTop = 0.88, marginBottom = (padY || 0.82);
+
+  const fits = (dist) => {
+    camera.position.copy(center).addScaledVector(d, dist);
+    camera.lookAt(center);
+    camera.updateMatrixWorld(true);
+    camera.updateProjectionMatrix();
+    for (const c of corners) {
+      const p = c.clone().project(camera);
+      if (Math.abs(p.x) > marginX) return false;
+      if (p.y > marginTop || p.y < -marginBottom) return false;
+    }
+    return true;
+  };
+
+  let lo = 8, hi = 1200;
+  for (let i = 0; i < 26; i++) {
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) hi = mid; else lo = mid;
+  }
+  const dist = hi * 1.02;
+  return [ center.x + d.x * dist, center.y + d.y * dist, center.z + d.z * dist,
+           center.x, center.y, center.z ];
+}
+
+const VIEWS = [
+  { name: '鸟瞰', dir: [0.70, 0.52, 0.72], pad: 1.02 },
+  { name: '人视', dir: [0.80, 0.17, 0.58], pad: 1.14 },
+  { name: '正立面', dir: [0.02, 0.16, 1.0], pad: 1.16 },
+];
+let viewIdx = 0;
+
+const ease = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+function flyTo(pos, tgt, ms){
+  camTween = { t: 0, ms: ms || 720,
+    p0: camera.position.clone(), p1: new THREE.Vector3(pos[0], pos[1], pos[2]),
+    t0: controls.target.clone(), t1: new THREE.Vector3(tgt[0], tgt[1], tgt[2]) };
+}
+function applyView(i, instant){
+  const v = VIEWS[i];
+  const a = fitDir(v.dir, v.pad);
+  if (instant){
+    camera.position.set(a[0], a[1], a[2]);
+    controls.target.set(a[3], a[4], a[5]);
+    controls.update();
+  } else {
+    flyTo([a[0], a[1], a[2]], [a[3], a[4], a[5]]);
+  }
+  cView.textContent = v.name;
+}
+cView.onclick = () => {
+  viewIdx = (viewIdx + 1) % VIEWS.length;
+  applyView(viewIdx, false);
+};
+
+// ---- 载入模型 ---------------------------------------------------------
+const loader = new THREE.GLTFLoader();
+loader.parse(b64buf(GLB_B64), '', (gltf) => {
+  const root = gltf.scene;
+  scene.add(root);
+
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    o.receiveShadow = true;
+  });
+  root.traverse((o) => {
+    const n = o.name || '';
+    if (n.startsWith('Floor_')) floors.push(o);
+    if (n.startsWith('Neighbor_')) neighbors.push(o);
+  });
+  floors.sort((a, b) => a.name.localeCompare(b.name));
+  floors.forEach(f => f.traverse(o => { if (o.isMesh) o.material = o.material.clone(); }));
+
+  neighbors.forEach(nb => nb.traverse(o => {
+    if (!o.isMesh) return;
+    const m = o.material;
+    m.transparent = true;
+    m.opacity = 0.20;
+    m.depthWrite = false;
+    m.side = THREE.DoubleSide;
+    m.roughness = 0.55;
+    o.renderOrder = 4;
+    const line = new THREE.LineSegments(
+      new THREE.EdgesGeometry(o.geometry, 24),
+      new THREE.LineBasicMaterial({ color: 0x5d7d99, transparent: true, opacity: 0.42, depthWrite: false })
+    );
+    line.renderOrder = 5;
+    o.add(line);
+  }));
+
+  // 相机取景只算主体楼，避免被远处体块撑大
+  focusBox = new THREE.Box3(new THREE.Vector3(-33.4, 0, -8.6), new THREE.Vector3(33.4, 22.2, 8.6));
+  applyView(0, true);
+
+  window.__ready = true;
+  document.getElementById('loading').classList.add('hide');
+  try { if (window.AndroidMap) window.AndroidMap.onReady(); } catch (e) {}
+}, (e) => {
+  const el = document.getElementById('loading');
+  el.innerHTML = '<div style="color:#e8663a;font-size:13px">模型加载失败</div>';
+  try { if (window.AndroidMap) window.AndroidMap.onError(String(e)); } catch (err) {}
+});
+
+// ---- 楼层点击 ---------------------------------------------------------
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let picked = null, downAt = 0, downX = 0, downY = 0;
+
+function findFloorNode(o){ let p = o; while (p) { if ((p.name||'').startsWith('Floor_')) return p; p = p.parent; } return null; }
+function setEmissive(node, hex){
+  if (!node) return;
+  node.traverse(o => { if (o.isMesh && o.material && o.material.emissive) o.material.emissive.setHex(hex); });
+}
+
+renderer.domElement.addEventListener('pointerdown', (e) => { downAt = Date.now(); downX = e.clientX; downY = e.clientY; });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  // 只有"轻点"才算选择，拖动旋转不触发
+  if (Date.now() - downAt > 320) return;
+  if (Math.abs(e.clientX - downX) > 12 || Math.abs(e.clientY - downY) > 12) return;
+
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+  ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(floors, true);
+  const node = hits.length ? findFloorNode(hits[0].object) : null;
+
+  if (picked === node) { setEmissive(picked, 0x000000); picked = null; return; }
+  setEmissive(picked, 0x000000);
+  picked = node;
+  if (picked) {
+    setEmissive(picked, dusk ? 0x3a2a12 : 0x2e2413);
+    toast(picked.name.replace('Floor_', '') + ' 层');
+  }
+});
+
+// ---- 循环 -------------------------------------------------------------
+const clock = new THREE.Clock();
+function tick(){
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (camTween){
+    camTween.t += dt * 1000;
+    const k = ease(Math.min(camTween.t / camTween.ms, 1));
+    camera.position.lerpVectors(camTween.p0, camTween.p1, k);
+    controls.target.lerpVectors(camTween.t0, camTween.t1, k);
+    if (k >= 1) camTween = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+tick();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  if (window.__ready) applyView(viewIdx, true);
+});
+</script>
+</body>
+</html>

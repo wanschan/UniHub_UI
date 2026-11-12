@@ -4,7 +4,7 @@
       Android 12+ 会强制显示系统开屏。这里把图标换成和自绘开屏一致的白盘气泡，
       并把底色对齐 splash_bg，避免「定位针图标」突然跳成「白色圆盘」。
     -->
-    <style name="Theme.CampusLink.Splash">
+    <style name="Theme.UniHub.Splash">
         <item name="android:windowBackground">@color/splash_bg</item>
         <item name="android:windowSplashScreenBackground">@color/splash_bg</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_mark</item>

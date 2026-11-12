@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.view.Gravity
 import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -17,6 +18,7 @@ import com.example.applicationoneapp.ui.widget.titleText
 import com.example.applicationoneapp.common.Ui.mono
 import com.example.applicationoneapp.common.Ui
 import com.example.applicationoneapp.R
+import com.example.applicationoneapp.BuildConfig
 
 /**
  * 弹层内容构建器。每个方法都往 sheet 容器里追加视图，
@@ -26,6 +28,7 @@ class Sheets(
     private val activity: AppCompatActivity,
     private val toast: (String) -> Unit,
     private val dismiss: () -> Unit,
+    private val onOpenMap: (() -> Unit)? = null,
 ) {
 
     private val ctx: Context get() = activity
@@ -190,7 +193,7 @@ class Sheets(
             updHint.text = "正在检查更新…"
             updBtn.postDelayed({
                 updBtn.text = "已是最新"
-                updHint.text = "当前 1.4.0（2026.06）· 已是最新版本"
+                updHint.text = "当前 ${BuildConfig.VERSION_NAME}（2026.11）· 已是最新版本"
                 toast("已是最新版本")
             }, 900)
         }
@@ -256,26 +259,27 @@ class Sheets(
     // ------------------------------------------------------------ 关于
 
     fun about() {
-        root.addView(ctx.titleText("关于 CampusLink"))
+        root.addView(ctx.titleText("关于 UniHub"))
 
         val row = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, ctx.sdpI(20f), 0, 0)
         }
-        row.addView(TextView(ctx).apply {
-            text = "CL"
-            textSize = 20f
-            gravity = Gravity.CENTER
-            letterSpacing = -0.03f
-            setTextColor(Pal.onInk(ctx))
-            background = Ui.rounded(ctx, Pal.ink(ctx), 17f)
+        row.addView(ImageView(ctx).apply {
+            setImageResource(R.drawable.ic_logo_mark)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            contentDescription = "UniHub"
+            background = Ui.rounded(
+                ctx, Color.WHITE, 17f,
+                strokeDp = 1f, strokeColor = Ui.color(ctx, R.color.line), withStroke = true,
+            )
         }, LinearLayout.LayoutParams(ctx.sdpI(56f), ctx.sdpI(56f)))
         row.addView(LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(ctx.sdpI(14f), 0, 0, 0)
             addView(TextView(ctx).apply {
-                text = "CampusLink"
+                text = "UniHub"
                 textSize = 17f
                 typeface = Typeface.create("sans-serif", Typeface.BOLD)
                 setTextColor(Pal.ink(ctx))
@@ -377,8 +381,8 @@ class Sheets(
         root.addView(sub("工作日 9:00 – 18:00 内回复，周末可能慢一些"))
         root.addView(View(ctx).apply { setBackgroundColor(Ui.color(ctx, R.color.line)) }, LinearLayout.LayoutParams(MP, 1))
         listOf(
-            "客服邮箱" to "hi@campuslink.app",
-            "微信公众号" to "CampusLink",
+            "客服邮箱" to "hi@unihub.app",
+            "微信公众号" to "UniHub",
             "线下服务站" to "图书馆 B1 · 12 号",
         ).forEachIndexed { index, (k, v) ->
             if (index > 0) root.addView(View(ctx).apply { setBackgroundColor(Ui.color(ctx, R.color.line)) },
@@ -401,7 +405,7 @@ class Sheets(
         }
         root.addView(cta("复制客服邮箱") {
             val cm = activity.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            cm.setPrimaryClip(android.content.ClipData.newPlainText("email", "hi@campuslink.app"))
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("email", "hi@unihub.app"))
             toast("邮箱已复制")
         }, LinearLayout.LayoutParams(MP, WC).apply { topMargin = ctx.sdpI(22f) })
     }
@@ -411,7 +415,7 @@ class Sheets(
     private var pick = 12
 
     fun sponsor() {
-        root.addView(ctx.titleText("赞助 CampusLink"))
+        root.addView(ctx.titleText("赞助 UniHub"))
         root.addView(sub("服务器和域名都是自己掏钱，赞助会全部用在维持服务上"))
 
         val grid = LinearLayout(ctx).apply {
@@ -498,6 +502,12 @@ class Sheets(
     fun plugins() {
         root.addView(ctx.titleText("获取插件"))
         root.addView(sub("插件会出现在「快捷启动」中，随时可关闭"))
+
+        // 实景地图：已内置的插件，点开直接进 3D 校区
+        root.addView(mapRow())
+        root.addView(View(ctx).apply { setBackgroundColor(Ui.color(ctx, R.color.line)) },
+            LinearLayout.LayoutParams(MP, 1))
+
         val toggles = mutableListOf<TextView>()
         plugins.forEachIndexed { index, item ->
             // 分割线放在竖直容器里；放进横向行会被 MATCH_PARENT 撑满，把内容挤出行外
@@ -544,6 +554,64 @@ class Sheets(
             row.addView(btn)
             root.addView(row, LinearLayout.LayoutParams(MP, WC))
         }
+    }
+
+    // ------------------------------------------------------------ 实景地图入口
+
+    private fun openMap() {
+        dismiss()
+        onOpenMap?.invoke()
+    }
+
+    /** 插件库顶部的「实景地图」卡片：左图标 + 标题副标题 + 打开 */
+    private fun mapRow(): LinearLayout {
+        val row = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, ctx.sdpI(2f), 0, ctx.sdpI(15f))
+            isClickable = true
+            setOnClickListener { openMap() }
+        }
+
+        row.addView(TextView(ctx).apply {
+            text = "3D"
+            textSize = 13f
+            gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            letterSpacing = 0.04f
+            setTextColor(Ui.color(ctx, R.color.tint_clay_fg))
+            background = Ui.rounded(ctx, Ui.color(ctx, R.color.tint_clay_bg), 13f)
+        }, LinearLayout.LayoutParams(ctx.sdpI(46f), ctx.sdpI(46f)))
+
+        row.addView(LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(ctx.sdpI(12f), 0, 0, 0)
+            addView(TextView(ctx).apply {
+                text = "实景地图"
+                textSize = 15.5f
+                setTextColor(Pal.ink(ctx))
+            })
+            addView(TextView(ctx).apply {
+                text = "男生宿舍 · 6F ｜ 3D 校园"
+                mono(10.5f)
+                setTextColor(Ui.color(ctx, R.color.ink_3))
+                setPadding(0, ctx.sdpI(4f), 0, 0)
+            })
+        }, LinearLayout.LayoutParams(0, WC, 1f))
+
+        row.addView(TextView(ctx).apply {
+            text = "打开"
+            textSize = 13f
+            gravity = Gravity.CENTER
+            setTextColor(Pal.onInk(ctx))
+            background = Ui.rounded(ctx, Pal.ink(ctx), 999f)
+            setPadding(ctx.sdpI(16f), ctx.sdpI(7f), ctx.sdpI(16f), ctx.sdpI(7f))
+            isClickable = true
+            setOnClickListener { openMap() }
+            pressFeedback(0.94f)
+        })
+
+        return row
     }
 
     // ------------------------------------------------------------ 订阅

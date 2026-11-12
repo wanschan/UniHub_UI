@@ -4,15 +4,24 @@
 
 **一个 100% 原生 Kotlin、零 Layout XML 的校园生活 App**
 
-课程表 · NFC 打卡 · 扫码直达 · 校园圈子 · 订阅会员
+课程表 · NFC 打卡 · 扫码直达 · 校园圈子 · 订阅会员 · 邮箱验证码登录 · 3D 实景校区
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-100%25-7F52FF?logo=kotlin&logoColor=white)
 ![minSdk](https://img.shields.io/badge/minSdk-24-3DDC84?logo=android&logoColor=white)
 ![targetSdk](https://img.shields.io/badge/targetSdk-37-3DDC84?logo=android&logoColor=white)
 ![No XML](https://img.shields.io/badge/Layout-XML%20Free-E8663A)
+![version](https://img.shields.io/badge/version-26w46a-E8663A)
 ![License](https://img.shields.io/badge/License-未声明-lightgrey)
 
 </div>
+
+<p align="center">
+  <a href="#功能清单">功能清单</a> ·
+  <a href="#技术实现要点">技术实现要点</a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#更新公告">更新公告</a> ·
+  <a href="CHANGELOG.md">完整更新日志</a>
+</p>
 
 ---
 
@@ -20,14 +29,15 @@
 
 UniHub 是一个校园生活类 App 的高保真实现。它先有一份纯 HTML/CSS 的交互原型（放在 [`design/`](design/)），再被逐屏、逐动效地翻译成**原生 Android 代码**。
 
-与常见的「WebView 套壳」做法不同，这里的每一寸界面都是真实的 Android View：
+与常见的「WebView 套壳」做法不同，除「实景地图」这一页要用 WebView 承载 three.js 的 3D 场景外，其余每一寸界面都是真实的 Android View：
 
 - **没有一行 layout XML**——整棵 View 树在 Kotlin 里搭出来，尺寸、圆角、间距、阴影全部代码化
 - **自定义 View 绘制**——开屏的墨色晕染、扫码框的往复扫描线、课表网格线都是 `onDraw` 画出来的
 - **原生动效**——`ValueAnimator` + 三次贝塞尔缓动复刻原型的时间轴，不是 CSS transition 的近似
 - **跟随系统的亮暗主题**——`values/` 与 `values-night/` 双份色板，切换后立即生效并持久化
+- **真实登录流程**——邮箱收 6 位验证码才能进主界面，登录态落盘，重启免登录
 
-共 **2 852 行 Kotlin / 11 个源文件**，无第三方 UI 库（除 Material Components 与 AppCompat）。
+共 **4 014 行 Kotlin / 17 个源文件**，无第三方 UI 库（除 Material Components 与 AppCompat），网络层只有 `HttpURLConnection`。
 
 ---
 
@@ -67,11 +77,21 @@ UniHub 是一个校园生活类 App 的高保真实现。它先有一份纯 HTML
 
 ### 开屏与登录
 
+开屏动画（`LaunchActivity`）每次启动都播：
+
 - 深灰底中央一枚白色圆盘，先做一次呼吸缩放
 - 白盘以自身为圆心放大铺满整屏（约 700 ms，先慢后快）
-- 转场后四角浮起墨色晕染，`Hello` 先淡入、再上浮至标题位，最后浮现「登录 / 创建账户」
-- 点击屏幕任意处可跳过动画直达登录页
-- 登录按钮按主题反转配色（亮色墨黑实心 / 暗色浅色实心），暗色下不会「黑压黑」
+- 转场后四角浮起墨色晕染，`Hello` 先淡入、再上浮至标题位（缩到 64sp，与登录页标题同字号）
+- 停顿片刻后按登录态分流：已登录进主界面，未登录进登录页
+- 点击屏幕任意处可跳过动画
+
+登录（`LoginActivity`）只在未登录时出现，视觉上承接开屏的终点（白底、墨色晕染、顶部 `Hello`），所以转场是淡入而不是滑入：
+
+- **两步式**：先填校园邮箱 → 再把收到的 6 位验证码填进去
+- 验证码 `SecureRandom` 生成，5 分钟有效、60 秒重发冷却、最多输错 5 次
+- 邮箱格式、验证码长度即时校验；出错时输入框横向抖动，底部给出剩余次数
+- 验证码走 Brevo 事务邮件接口发送；debug 包在邮件发不出去时会把本次验证码直接显示在界面上，方便联调
+- 登录成功写入本机（`AuthStore`），下次启动直接进主界面；「我」页可退出登录
 
 ### 首页
 
@@ -80,6 +100,15 @@ UniHub 是一个校园生活类 App 的高保真实现。它先有一份纯 HTML
 - 插件卡（课程、饮水）+「获取插件」半宽格子，点进插件管理弹层
 - NFC 面板：大图标 + 三行状态信息
 - 扫码面板：深色取景框 + 四角 L 形角标 + 往复扫描线 + 两条扫码历史
+
+### 实景地图（3D 校区）
+
+入口在「插件管理」顶部的「实景地图」卡片（已内置插件，不可关闭）。整页是 WebView 里的 three.js 场景，模型 GLB 已内联进 `assets/map/campus.html`，**约 1.3 MB、完全离线**，不需要任何网络请求：
+
+- 拖动旋转、双指缩放；点击楼层高亮该层
+- 底部四个开关：**周边**（显示/隐藏周边建筑）、**黄昏**（暖色天空氛围）、**环绕**（自动旋转）、**鸟瞰**（切到俯视机位）
+- 跟随 App 主题：亮色 / 暗色各一套天空与地面配色
+- 原生顶栏重绘，字号、描边、返回按钮与其它页面同源；模型解析期间显示「正在加载校园模型」，WebView 渲染进程崩溃有降级提示，不会白屏
 
 ### 课表
 
@@ -96,26 +125,29 @@ UniHub 是一个校园生活类 App 的高保真实现。它先有一份纯 HTML
 
 ### 我
 
-- 头像方块 + `Hello, <昵称>`
+- 头像方块显示昵称首字 + `Hello, <昵称>`，标题下方带一行登录邮箱
 - 菜单：全局设置（右侧实时显示当前主题与语言）、常见问题、更多（可展开：关于 / 隐私 / 联系）、赞助
+- **退出登录**：二次确认后清空本机登录态并回到登录页，课表与主题设置不受影响
 - 旋转 −9° 的订阅卡：49 RMB、欢迎订阅、详细信息入口
 
 ### 弹层（8 套内容共用一层底部抽屉）
 
 | 弹层 | 内容 |
 | --- | --- |
-| 全局设置 | 语言 / 主题（亮 / 暗 / 跟随系统）分段控件、版本更新检测 |
+| 全局设置 | 语言 / 主题（亮 / 暗 / 跟随系统）分段控件、版本更新检测（读 `BuildConfig.VERSION_NAME`） |
 | 常见问题 | 5 条手风琴，+/− 图标切换 |
-| 关于 | 品牌信息与版本号 |
+| 关于 | 品牌 Logo、版本号与备案信息 |
 | 隐私 | 个人信息收集清单 |
 | 联系 | 客服邮箱，一键复制到剪贴板 |
 | 赞助 | 6 / 12 / 28 三档金额选择 |
-| 插件 | 5 个插件开关（课程、饮水、NFC、扫码、圈子） |
+| 插件 | 顶部「实景地图」内置入口 + 5 个插件开关（课程、饮水、NFC、扫码、圈子） |
 | 会员 | 权益列表 + 立即订阅 |
 
 ### 系统行为
 
 - **主题**：亮 / 暗 / 跟随系统，写入 `SharedPreferences`，切换后 `recreate()` 立即生效
+- **登录态**：开场页播完按 `AuthStore` 分流——已登录进主界面，未登录进登录页；`MainActivity` 启动时再兜底校验一次，未登录直接跳登录
+- **转场**：开场页 → 登录页 / 主界面是 320 ms 淡入（`anim/route_in`），不用滑动，因为登录页视觉上就是开场页的延续
 - **返回键**：先关弹层 → 再回首页 → 最后才退出，三级递进
 - **状态栏**：真实系统栏 + `WindowInsets` 内边距，图标明暗随主题切换
 - **Android 12+ 开屏**：`values-v31` 覆写 `windowSplashScreenAnimatedIcon`，系统闪屏与自绘开屏无缝衔接
@@ -162,9 +194,22 @@ UniHub 是一个校园生活类 App 的高保真实现。它先有一份纯 HTML
 790 ms    白盘放大铺满（1 → 18 倍）
 1360 ms   墨色晕染浮现
 1520 ms   Hello 淡入
-2050 ms   Hello 上浮至顶部
-2330 ms   登录 / 创建账户按钮出现
+2050 ms   Hello 上浮至顶部（缩到 64sp，与登录页标题同字号）
+~2400 ms  停留片刻后按登录态分流：已登录 → 主界面，未登录 → 登录页
 ```
+
+### 3D 校区配色
+
+地图页不读 Android 资源，而是由 `campus.html` 里一份 CSS 变量驱动，主题通过 `?dark=0|1` 传入：
+
+| 语义 | 亮色 | 暗色 | 黄昏（按钮切换） |
+| --- | --- | --- | --- |
+| 近天 `sky1` | `#FFFFFF` | `#1B1F26` | `#FFD7A6` |
+| 中天 `sky2` | `#EEF2F6` | `#14171C` | `#E0A075` |
+| 远天 `sky3` | `#DFE6EC` | `#0D0F13` | `#9D6F86` |
+| 地面 `ground` | `#C9CFC4` | `#22262A` | 继承当前主题 |
+
+楼体材质（`M_Wall_White` / `M_Brick` / `M_Glass` / `M_Roof` …）是三段式固定色，不随主题变化，只有天空与地面跟着走——这样夜景里楼还是那栋楼。
 
 ---
 
@@ -195,6 +240,28 @@ UniHub 是一个校园生活类 App 的高保真实现。它先有一份纯 HTML
 **6. 底部抽屉**
 `BottomSheetDialog` + 自定义 `SheetDialog` 样式（26 dp 上圆角、去掉最大宽度限制），内容由 `Sheets` 统一构建，8 套内容共用同一个容器与关闭逻辑。
 
+**7. 邮箱验证码登录**
+
+| 环节 | 做法 |
+| --- | --- |
+| 生成 | `SecureRandom` 取 6 位数字，`String.format(Locale.US, "%06d", …)` 补零 |
+| 时效 | 5 分钟 TTL、60 秒重发冷却、5 次输错上限，超限必须重新获取 |
+| 发送 | `BrevoMailer` 用 `HttpURLConnection` + `org.json` 直接打 Brevo 的 `POST /v3/smtp/email`，带 HTML 与纯文本两份正文 |
+| 线程 | UI 线程只改状态，网络请求放在 `Executors.newSingleThreadExecutor()` |
+| 保活 | 验证码只存内存；旋转屏幕时把 step / 邮箱 / 验证码 / 过期时间 / 已试次数写进 `onSaveInstanceState` 再取回 |
+| 落盘 | 登录成功后 `AuthStore` 写 `SharedPreferences`（邮箱、昵称、方式、时间），`MainActivity` 启动时兜底校验 |
+
+**8. WebView 里的 3D 校区**
+
+`CampusMapActivity` 把 `file:///android_asset/map/campus.html?dark=0|1` 交给 WebView，页面内 three.js 用 `GLTFLoader` 解析内联的 GLB，`WebGLRenderer` 出图，`OrbitControls` 负责手势。主题通过 query 参数传入，页面读 `dark` 切换 CSS 变量与天空色，所以不需要重启 Activity 就能跟随主题。
+
+几个必须处理的坑：`WebSettings` 要显式开 `domStorageEnabled`；`setAllowFileAccessFromFileURLs` 在 API 30+ 默认关闭，内联资源必须全部塞进同一个 HTML 才不会因跨域被拦；`onRenderProcessGone` 要返回 `true` 并给出降级提示，否则整个 App 会被拖崩。
+
+**9. 密钥不进仓库**
+Brevo 的 API Key 写在 `local.properties`（已被 `.gitignore` 排除），Gradle 侧读进来后用 `buildConfigField` 注入，Kotlin 只读 `BuildConfig.BREVO_API_KEY`。仓库里搜不到真实 Key，别人 clone 下来该值为空，App 会提示「未配置 Brevo API Key」而不是崩溃。
+
+> 但这只是「不把 Key 公开」，不是「Key 安全」——它仍然会被打进 APK。上线前必须把发信搬到服务端。
+
 ---
 
 ## 项目结构
@@ -205,29 +272,49 @@ UniHub_UI/
 │   └── src/main/
 │       ├── java/com/example/applicationoneapp/
 │       │   ├── MainActivity.kt            # 主容器：四页叠加 + TabBar + 弹层 + 返回栈
+│       │   ├── auth/
+│       │   │   ├── AuthConfig.kt          # 验证码参数（API Key 由 BuildConfig 注入）
+│       │   │   ├── AuthStore.kt           # 登录态持久化 + 昵称推导
+│       │   │   └── BrevoMailer.kt         # 调 Brevo 事务邮件发验证码
 │       │   ├── common/
 │       │   │   ├── Pal.kt                 # 颜色取值（主题感知）
 │       │   │   ├── ThemePrefs.kt          # 主题 / 语言持久化
 │       │   │   └── Ui.kt                  # dp、圆角、颜色、字体等基础工具
 │       │   ├── ui/
-│       │   │   ├── LaunchActivity.kt      # 开屏 + 登录（含 InkBlobs 自绘）
+│       │   │   ├── LaunchActivity.kt      # 开场动画 + 按登录态分流
+│       │   │   ├── LoginActivity.kt       # 邮箱 + 6 位验证码
+│       │   │   ├── CampusMapActivity.kt   # WebView 承载 3D 校区
 │       │   │   ├── page/
 │       │   │   │   ├── HomePage.kt        # 首页（含 ScanBracket）
 │       │   │   │   ├── TimetablePage.kt   # 课表（含 GridRow）
 │       │   │   │   ├── CirclesPage.kt     # 圈子
 │       │   │   │   └── MePage.kt          # 我
 │       │   │   ├── sheet/Sheets.kt        # 8 套底部弹层
-│       │   │   └── widget/Widgets.kt      # PageShell / TabBar / Toast / 缩放适配
+│       │   │   └── widget/
+│       │   │       ├── Widgets.kt         # PageShell / TabBar / Toast / 缩放适配
+│       │   │       └── InkBlobs.kt        # 墨色晕染色斑
+│       ├── assets/map/campus.html         # 内联 GLB 的 three.js 校区（离线单文件）
 │       ├── res/
 │       │   ├── values/                    # 亮色色板、字体、主题
 │       │   ├── values-night/              # 暗色色板、主题
 │       │   ├── values-v31/                # Android 12+ 系统闪屏
-│       │   └── drawable/                  # 矢量图标（全部手写 path）
+│       │   ├── anim/                      # 登录页淡入转场
+│       │   ├── drawable/                  # 手绘矢量图标
+│       │   ├── drawable-*dpi/             # 品牌位图（Logo / 闪屏圆盘）
+│       │   └── mipmap-*dpi/               # 启动器图标（脚本出图）
 │       └── AndroidManifest.xml
 ├── design/                                # 原始 HTML 交互原型
 │   ├── index.html                         # 主界面
 │   └── login.html                         # 登录引导
 ├── screenshots/                           # 实机截图
+├── tools/
+│   ├── make_icons.py                      # 源图 → 各密度启动器图标 / 闪屏
+│   ├── preview_icons.py                   # 生成遮罩与闪屏效果预览
+│   └── model/                             # 3D 校区模型流水线（详见其 README）
+│       ├── blender/build_campus.py        # 程序化建模 → .blend
+│       ├── gen_campus.py                  # 同一份几何 → .glb
+│       └── make_app_asset.py              # → assets/map/campus.html
+├── CHANGELOG.md                           # 更新日志（26wNNx 编号规则）
 ├── gradle/libs.versions.toml              # 版本目录
 └── settings.gradle.kts
 ```
@@ -267,7 +354,46 @@ gradlew.bat assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-首次启动进入开屏 → 登录页，点「登录」即进入主界面（当前为 Demo，不做真实鉴权）。
+首次启动进入开屏动画 → 登录页，填邮箱收验证码登录后进主界面。**没有配置邮件服务时登录不可用**，按下节配一下即可。
+
+### 配置登录验证码（必做）
+
+验证码通过 [Brevo](https://www.brevo.com/) 的事务邮件接口发送，凭据不写进源码。在项目根目录的 `local.properties`（该文件不入库）追加：
+
+```properties
+# Brevo 后台 → SMTP & API → API Keys 新建，权限只要 Transactional email
+brevo.apiKey=xkeysib-xxxxxxxxxxxxxxxx
+# 必须是 Brevo 里已验证的发件人，否则接口报 400 sender not valid
+brevo.senderEmail=you@your-domain.com
+brevo.senderName=UniHub
+```
+
+不配也能装能跑：`BuildConfig.BREVO_API_KEY` 为空时，点「获取验证码」会提示「未配置 Brevo API Key」；debug 包还会把本次生成的验证码直接印在错误提示里，方便只调界面时用。
+
+> 工程里没有、也不该有真实 Key。用环境变量 `BREVO_API_KEY` 也能注入，适合 CI。
+
+### 品牌图标
+
+启动器图标 / 系统闪屏 / 自绘开屏圆盘上的 Logo 全部由同一张源图生成，换图标只需重跑：
+
+```bash
+python tools/make_icons.py      # 生成 mipmap-* 与 drawable-* 下各密度 PNG
+python tools/preview_icons.py   # 生成遮罩/闪屏效果预览（build/icon-preview/）
+```
+
+源图路径写在 `make_icons.py` 的 `SRC`；脚本会抠掉白底、按各场景的安全区比例居中（自适应图标 60%、传统图标 86%、闪屏白盘 50%、开屏圆盘 62%）。
+
+### 3D 校区模型
+
+`assets/map/campus.html` 不是手改的，由 `tools/model/` 下的流水线产出：同一份 Python 几何先导出 `.glb`，再由 `make_app_asset.py` 把 GLB、three.js、交互脚本内联成单个离线 HTML。
+
+```bash
+cd tools/model
+python gen_campus.py        # -> out/campus.glb
+python make_app_asset.py    # -> ../../app/src/main/assets/map/campus.html
+```
+
+要在 Blender 里改模型（开间数、层数、层高、窗洞、周边体块）见 [`tools/model/README.md`](tools/model/README.md)。
 
 ### 关于 Gradle 下载源
 
@@ -296,21 +422,52 @@ distributionUrl=https\://services.gradle.org/distributions/gradle-9.7.0-bin.zip
 
 ## 已知限制
 
-- **数据全部为本地 Mock**：课程、动态、扫码历史、账号信息都写死在代码里，没有网络层与数据库
-- **登录是 Demo 行为**：点按钮即进入主界面，没有账号体系
+- **数据仍以本地 Mock 为主**：课程、动态、扫码历史写死在代码里，没有数据库；只有登录会真的发邮件
+- **登录是纯客户端实现**：验证码在本机生成、本机校验，登录态只存在本机 `SharedPreferences`，换设备 / 清数据需要重新验证；没有服务端签发的 token
+- **Brevo Key 仍在 APK 里**：虽然源码与仓库不含真实 Key，但运行时它必然被打进包里，能被反编译提取。上线前应把「生成 + 发送验证码」搬到服务端
 - **包名仍为占位符** `com.example.applicationoneapp`，正式发布前需重命名
 - **仅中文单语种**：`lint` 中已关闭 `HardcodedText` / `SetTextI18n` / `MissingTranslation`
-- **未适配横屏与平板**：布局按 392 dp 竖屏等比缩放，横屏会出现大量留白
+- **未适配横屏与平板**：布局按 392 dp 竖屏等比缩放，横屏会出现大量留白（3D 地图已按屏幕比例自动取景）
 - **无单元测试与 UI 测试**：`androidTest` 目录仅有模板文件
+- **3D 地图首次加载有 1–2 秒解析耗时**，且使 APK 体积增加约 1.1 MB
 
 ## Roadmap
 
+- [ ] 服务端签发 token，验证码改由后端生成与校验
 - [ ] 接入真实课表数据（教务系统 / JSON 导入）
 - [ ] 「饮水」做成可记账的消费流水页
 - [ ] NFC 与扫码接入真实能力（`NfcAdapter` / CameraX）
 - [ ] 圈子接入后端，支持发帖与评论
+- [ ] 3D 校区接入室内导航：点房间跳楼层并给出路线
 - [ ] 抽取 `strings.xml` 支持多语言
 - [ ] 平板 / 折叠屏布局
+
+---
+
+## 更新公告
+
+### 26w46a · 2026-11-12
+
+本次更新把「点一下就能进的 Demo」做成了真正需要验证身份的 App，并把校园搬进了 3D。
+
+**新增**
+
+- 邮箱验证码登录：两步式（邮箱 → 6 位码），5 分钟有效、60 秒重发、5 次错误上限
+- 登录态本地持久化，重启免登录；「我」页新增退出登录，头像与昵称来自真实账号
+- 实景地图：插件库新增入口，three.js 渲染的 3D 校区，可旋转缩放、点楼层高亮，支持周边 / 黄昏 / 环绕 / 鸟瞰四个开关，完全离线
+- 品牌位图与启动器图标改由脚本统一产出，新增图标预览工具
+
+**改进**
+
+- 品牌从 CampusLink 统一为 UniHub（主题名、关于、客服邮箱、应用名）
+- 启动流程拆分：开场动画与登录页各司其职，转场改为淡入以承接墨色衔接
+- 关于弹层换用真实 Logo
+
+**安全**
+
+- Brevo API Key 移出源码，改由不入库的 `local.properties` 注入 `BuildConfig`
+
+完整变更见 [`CHANGELOG.md`](CHANGELOG.md)。版本号规则：`年数 + w + ISO 周数 + 更新序`，例如 `26w46a` 表示 2026 年第 46 周的第 1 次更新。
 
 ---
 

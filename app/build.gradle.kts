@@ -1,6 +1,25 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
 }
+
+// 登录验证码用的 Brevo 凭据放在 local.properties（不入库），
+// 通过 BuildConfig 注入，避免把 API Key 明文写进源码再推到公开仓库。
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
+fun String.asBuildConfigString(): String =
+    "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+val brevoApiKey = localProps.getProperty("brevo.apiKey")
+    ?: System.getenv("BREVO_API_KEY").orEmpty()
+val brevoSenderEmail = localProps.getProperty("brevo.senderEmail")
+    ?: "wanschan@outlook.com"
+val brevoSenderName = localProps.getProperty("brevo.senderName")
+    ?: "UniHub"
 
 android {
     namespace = "com.example.applicationoneapp"
@@ -12,10 +31,15 @@ android {
         applicationId = "com.example.applicationoneapp"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "26w46a"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // 运行时从 BuildConfig 读取，源码里不再出现真实 Key
+        buildConfigField("String", "BREVO_API_KEY", brevoApiKey.asBuildConfigString())
+        buildConfigField("String", "BREVO_SENDER_EMAIL", brevoSenderEmail.asBuildConfigString())
+        buildConfigField("String", "BREVO_SENDER_NAME", brevoSenderName.asBuildConfigString())
     }
 
     buildTypes {
@@ -32,6 +56,7 @@ android {
     }
     buildFeatures {
         viewBinding = false
+        buildConfig = true
     }
     lint {
         // 本项目的界面文案全部由 Kotlin 代码构建（没有 layout XML），且只做中文单语种，

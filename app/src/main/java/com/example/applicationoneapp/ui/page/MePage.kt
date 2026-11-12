@@ -3,6 +3,7 @@ package com.example.applicationoneapp.ui.page
 import android.annotation.SuppressLint
 import androidx.core.graphics.toColorInt
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.view.Gravity
@@ -12,8 +13,10 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.example.applicationoneapp.auth.AuthStore
 import com.example.applicationoneapp.common.Pal
 import com.example.applicationoneapp.common.ThemePrefs
+import com.example.applicationoneapp.ui.LoginActivity
 import com.example.applicationoneapp.ui.widget.PageShell
 import com.example.applicationoneapp.ui.widget.pressFeedback
 import com.example.applicationoneapp.ui.widget.sdpI
@@ -61,7 +64,7 @@ class MePage(
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(0, ctx.sdpI(6f), 0, ctx.sdpI(4f))
                 addView(TextView(ctx).apply {
-                    text = "刘"
+                    text = AuthStore.initial(ctx)
                     textSize = 23f
                     gravity = Gravity.CENTER
                     setTextColor(if (ThemePrefs.isDark(ctx)) Pal.ink(ctx) else Color.WHITE)
@@ -77,13 +80,23 @@ class MePage(
                         setTextColor(Ui.color(ctx, R.color.ink_2))
                     })
                     addView(TextView(ctx).apply {
-                        text = "Ruining Liu"
+                        text = AuthStore.displayName(ctx).ifBlank { "同学" }
                         textSize = 23f
                         setTextColor(Pal.ink(ctx))
                         typeface = Typeface.create("sans-serif", Typeface.BOLD)
                         setPadding(0, ctx.sdpI(3f), 0, 0)
-                    })
-                }, LinearLayout.LayoutParams(WC, WC))
+                        maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                    }, LinearLayout.LayoutParams(MP, WC))
+                    addView(TextView(ctx).apply {
+                        text = AuthStore.email(ctx)
+                        mono(10.5f)
+                        setTextColor(Ui.color(ctx, R.color.ink_3))
+                        setPadding(0, ctx.sdpI(4f), 0, 0)
+                        maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                    }, LinearLayout.LayoutParams(MP, WC))
+                }, LinearLayout.LayoutParams(0, WC, 1f))
             }
         })
     }
@@ -113,7 +126,7 @@ class MePage(
             visibility = View.GONE
         }
         menu.addView(moreBlock, LinearLayout.LayoutParams(MP, WC))
-        moreBlock.addView(subRow("关于 CampusLink") { onAbout() })
+        moreBlock.addView(subRow("关于 UniHub") { onAbout() })
         moreBlock.addView(subDivider())
         moreBlock.addView(subRow("个人信息收集清单") { onPrivacy() })
         moreBlock.addView(subDivider())
@@ -121,6 +134,8 @@ class MePage(
         moreBlock.addView(subDivider())
 
         menu.addView(sponsorRow())
+        menu.addView(rowDivider())
+        menu.addView(logoutRow())
         refreshSettings()
 
         // ---- 会员卡
@@ -224,6 +239,38 @@ class MePage(
             setTextColor(Ui.color(ctx, R.color.ink_4))
         })
         return row
+    }
+
+    private fun logoutRow(): View {
+        val ctx = context
+        return LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(ctx.sdpI(31f), ctx.sdpI(16f), 0, ctx.sdpI(16f))
+            isClickable = true
+            setOnClickListener { confirmLogout() }
+            addView(TextView(ctx).apply {
+                text = "退出登录"
+                textSize = 15.5f
+                setTextColor(Pal.accent(ctx))
+            }, LinearLayout.LayoutParams(0, WC, 1f))
+        }
+    }
+
+    private fun confirmLogout() {
+        val ctx = context
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle("退出登录")
+            .setMessage("退出后需要重新用邮箱验证码登录，本机已有的课表与设置不会删除。")
+            .setNegativeButton("取消", null)
+            .setPositiveButton("退出") { _, _ ->
+                AuthStore.signOut(ctx)
+                ctx.startActivity(Intent(ctx, LoginActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                })
+                (ctx as? android.app.Activity)?.finish()
+            }
+            .show()
     }
 
     private fun toggleMore() {

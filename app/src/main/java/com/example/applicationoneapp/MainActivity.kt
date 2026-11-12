@@ -1,5 +1,6 @@
 package com.example.applicationoneapp
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
@@ -8,6 +9,9 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import com.example.applicationoneapp.auth.AuthStore
+import com.example.applicationoneapp.ui.CampusMapActivity
+import com.example.applicationoneapp.ui.LoginActivity
 import com.example.applicationoneapp.common.Pal
 import com.example.applicationoneapp.common.ThemePrefs
 import com.example.applicationoneapp.ui.page.CirclesPage
@@ -36,6 +40,12 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         ThemePrefs.apply(this)
         super.onCreate(savedInstanceState)
+        // 未登录不进主界面（正常流程由开场页分流，这里只兜底）
+        if (!AuthStore.isLoggedIn(this)) {
+            startActivity(Intent(this, LoginActivity::class.java))
+            finish()
+            return
+        }
         buildUi()
         registerBackCallback()
     }
@@ -133,7 +143,16 @@ class MainActivity : AppCompatActivity() {
     /** 打开底部弹层；每次新建 Sheets，往弹层容器里追加内容 */
     private fun showSheet(block: (Sheets) -> Unit) {
         sheetController.show { container ->
-            val sheets = Sheets(this, { msg -> toast.show(msg) }, { sheetController.dismiss() })
+            val sheets = Sheets(
+                this,
+                { msg -> toast.show(msg) },
+                { sheetController.dismiss() },
+                onOpenMap = {
+                    sheetController.dismiss()
+                    startActivity(Intent(this, CampusMapActivity::class.java))
+                    overridePendingTransition(R.anim.route_in, R.anim.route_out)
+                },
+            )
             sheets.reset(container)
             block(sheets)
         }

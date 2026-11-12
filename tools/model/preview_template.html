@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>UniHub · 男生宿舍 3D 模型</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0d0f12;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  #sky{position:fixed;inset:0;transition:background .7s ease;
+    background:radial-gradient(125% 95% at 68% 2%, #e6f1fa 0%, #c3d8ea 26%, #a8c0d4 52%, #93a6b3 78%, #7f8d97 100%);}
+  #sky:after{content:"";position:absolute;inset:0;transition:background .7s ease;
+    background:radial-gradient(95% 65% at 50% 108%, rgba(24,30,36,.38), transparent 68%)}
+  body.dusk #sky{background:radial-gradient(120% 90% at 76% 4%, #ffd9a8 0%, #e8a978 22%, #a8738a 48%, #5f5474 72%, #3b3b52 100%)}
+  body.dusk #sky:after{background:radial-gradient(95% 65% at 50% 108%, rgba(20,16,26,.5), transparent 70%)}
+  canvas{display:block;position:fixed;inset:0}
+
+  .hud{position:fixed;color:#eef1f4;z-index:10;user-select:none}
+  .card{background:rgba(18,21,26,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.10);border-radius:16px;
+    box-shadow:0 10px 30px rgba(0,0,0,.28)}
+
+  #title{top:18px;left:18px;padding:14px 18px 13px}
+  #title .k{font-size:10.5px;letter-spacing:.16em;color:#8ea0b2;font-weight:600;text-transform:uppercase}
+  #title h1{margin:6px 0 3px;font-size:17px;font-weight:650;letter-spacing:.01em}
+  #title p{margin:0;font-size:11.5px;color:#93a3b3;line-height:1.5}
+  #title b{color:#f0c987;font-weight:600}
+
+  #bar{left:50%;transform:translateX(-50%);bottom:18px;display:flex;gap:8px;padding:8px;
+    align-items:center;max-width:calc(100vw - 24px);overflow-x:auto}
+  #bar::-webkit-scrollbar{display:none}
+  .btn{flex:0 0 auto;appearance:none;border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.055);color:#dfe6ec;font-size:12.5px;font-weight:550;
+    padding:9px 13px;border-radius:11px;cursor:pointer;transition:.16s;font-family:inherit;
+    display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .btn:hover{background:rgba(255,255,255,.12)}
+  .btn.on{background:#f0c987;color:#1a1c20;border-color:#f0c987}
+  .sep{width:1px;height:22px;background:rgba(255,255,255,.12);flex:0 0 auto}
+
+  #tag{right:18px;bottom:18px;padding:10px 14px;font-size:11px;color:#9aabb9;line-height:1.7}
+  #tag i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:1px}
+  #tag .a{background:#8f4038}#tag .b{background:#e9e4da}#tag .c{background:rgba(150,190,225,.55)}
+
+  #hint{left:50%;transform:translateX(-50%);top:22px;font-size:11.5px;color:#7d8f9e;
+    letter-spacing:.02em;background:rgba(18,21,26,.55);padding:6px 12px;border-radius:20px;
+    border:1px solid rgba(255,255,255,.07);transition:opacity .6s}
+  #hint.gone{opacity:0}
+
+  #load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:50;
+    background:#0d0f12;color:#8ea0b2;font-size:12.5px;letter-spacing:.08em;transition:opacity .5s}
+  #load.hide{opacity:0;pointer-events:none}
+
+  @media (max-width:600px){
+    #title{padding:11px 14px 10px} #title h1{font-size:15px} #title p{display:none}
+    #tag,#hint{display:none} #bar{bottom:12px;padding:6px}
+    .btn{font-size:12px;padding:8px 11px}
+  }
+</style>
+</head>
+<body>
+<div id="sky"></div>
+
+<div id="title" class="hud card">
+  <div class="k">Cangzhou Jiaotong College</div>
+  <h1>男生宿舍 · <b>6F</b></h1>
+  <p>66 × 15 m ／ 檐高 20.4 m ／ 周边建筑以半透明体块示意</p>
+</div>
+
+<div id="hint" class="hud">拖动旋转 · 滚轮缩放 · 点击楼层高亮</div>
+
+<div id="bar" class="hud card">
+  <button class="btn on" id="btnNeighbor">周边体块</button>
+  <button class="btn" id="btnDusk">黄昏</button>
+  <button class="btn" id="btnRotate">自动旋转</button>
+  <div class="sep"></div>
+  <button class="btn on" id="btnV1">鸟瞰</button>
+  <button class="btn" id="btnV2">人视</button>
+  <button class="btn" id="btnV3">正立面</button>
+</div>
+
+<div id="tag" class="hud card">
+  <div><i class="a"></i>砖红墙面 / 基座</div>
+  <div><i class="b"></i>白色涂料 / 女儿墙立柱</div>
+  <div><i class="c"></i>周边建筑（半透明）</div>
+</div>
+
+<div id="load">模型载入中…</div>
+
+<script>/*__THREE__*/</script>
+<script>/*__ORBIT__*/</script>
+<script>/*__GLTF__*/</script>
+<script>
+const GLB_B64 = "__GLB_B64__";
+function b64buf(s){
+  const bin = atob(s), n = bin.length, u = new Uint8Array(n);
+  for(let i=0;i<n;i++) u[i] = bin.charCodeAt(i);
+  return u.buffer;
+}
+
+// ---- 渲染器 -----------------------------------------------------------
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xa2b4c0, 150, 385);
+
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth/window.innerHeight, 0.4, 3000);
+camera.position.set(74, 43, 82);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 10, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.075;
+controls.minDistance = 18;
+controls.maxDistance = 620;
+controls.maxPolarAngle = Math.PI * 0.497;
+controls.autoRotateSpeed = 0.55;
+
+// 调试 / 分享参数：?cam=x,y,z&tgt=x,y,z&neighbors=0&dusk=1
+const QS = new URLSearchParams(location.search);
+function num3(k){ const v = QS.get(k); if(!v) return null;
+  const a = v.split(',').map(Number); return a.length===3 && a.every(n=>isFinite(n)) ? a : null; }
+const qCam = num3('cam'), qTgt = num3('tgt');
+if (qCam) camera.position.set(qCam[0], qCam[1], qCam[2]);
+if (qTgt) controls.target.set(qTgt[0], qTgt[1], qTgt[2]);
+const qNoNeighbor = QS.get('neighbors') === '0';
+const qDusk = QS.get('dusk') === '1';
+
+// ---- 光照 -------------------------------------------------------------
+const hemi = new THREE.HemisphereLight(0xcfe2f5, 0x4a4234, 0.62);
+scene.add(hemi);
+
+const sun = new THREE.DirectionalLight(0xfff4e2, 2.0);
+sun.position.set(118, 168, 84);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.00018;
+sun.shadow.normalBias = 0.55;
+const sc = sun.shadow.camera;
+sc.left = -160; sc.right = 160; sc.top = 160; sc.bottom = -160; sc.near = 20; sc.far = 560;
+sc.updateProjectionMatrix();
+scene.add(sun);
+
+const fill = new THREE.DirectionalLight(0x9dc0e2, 0.55);
+fill.position.set(-140, 70, -120);
+scene.add(fill);
+
+function applyPreset(dusk){
+  if (dusk){
+    sun.color.setHex(0xffb47a); sun.intensity = 1.55;
+    sun.position.set(150, 46, 62);
+    hemi.color.setHex(0xb7a0c4); hemi.groundColor.setHex(0x2c2620); hemi.intensity = 0.5;
+    fill.color.setHex(0x6f7fb0); fill.intensity = 0.42;
+    scene.fog.color.setHex(0x8c7480);
+    renderer.toneMappingExposure = 1.02;
+  } else {
+    sun.color.setHex(0xfff4e2); sun.intensity = 2.0;
+    sun.position.set(118, 168, 84);
+    hemi.color.setHex(0xcfe2f5); hemi.groundColor.setHex(0x4a4234); hemi.intensity = 0.62;
+    fill.color.setHex(0x9dc0e2); fill.intensity = 0.55;
+    scene.fog.color.setHex(0xa2b4c0);
+    renderer.toneMappingExposure = 1.0;
+  }
+  document.body.classList.toggle('dusk', dusk);
+}
+applyPreset(qDusk);
+
+// ---- 接地阴影 / 柔和 AO -----------------------------------------------
+(function addContactShadow(){
+  const S = 256, cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const g = cv.getContext('2d');
+  const rg = g.createRadialGradient(S/2, S/2, 0, S/2, S/2, S/2);
+  rg.addColorStop(0.00, 'rgba(20,24,22,0.72)');
+  rg.addColorStop(0.30, 'rgba(20,24,22,0.55)');
+  rg.addColorStop(0.58, 'rgba(20,24,22,0.24)');
+  rg.addColorStop(0.82, 'rgba(20,24,22,0.06)');
+  rg.addColorStop(1.00, 'rgba(20,24,22,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, S, S);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.anisotropy = 4;
+  const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(92, 34),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.85 })
+  );
+  plane.rotation.x = -Math.PI / 2;
+  plane.position.set(0, 0.06, 0);
+  plane.renderOrder = 1;
+  scene.add(plane);
+})();
+
+// ---- 载入模型 ---------------------------------------------------------
+const btnNeighbor = document.getElementById('btnNeighbor');
+const btnDusk     = document.getElementById('btnDusk');
+const btnRotate   = document.getElementById('btnRotate');
+const hint        = document.getElementById('hint');
+
+const floors = [];
+const neighbors = [];
+
+new THREE.GLTFLoader().parse(b64buf(GLB_B64), '', (gltf) => {
+  const root = gltf.scene;
+  scene.add(root);
+
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    o.receiveShadow = true;
+  });
+
+  root.traverse((o) => {
+    const n = o.name || '';
+    if (n.startsWith('Floor_')) floors.push(o);
+    if (n.startsWith('Neighbor_')) neighbors.push(o);
+  });
+  floors.sort((a, b) => a.name.localeCompare(b.name));
+
+  // 每层材质独立，才能单独高亮
+  floors.forEach(f => f.traverse(o => { if (o.isMesh) o.material = o.material.clone(); }));
+
+  // 周边体块：半透明 + 描边
+  neighbors.forEach(nb => nb.traverse(o => {
+    if (!o.isMesh) return;
+    const m = o.material;
+    m.transparent = true;
+    m.opacity = 0.20;
+    m.depthWrite = false;
+    m.side = THREE.DoubleSide;
+    m.roughness = 0.55;
+    o.renderOrder = 4;
+    const line = new THREE.LineSegments(
+      new THREE.EdgesGeometry(o.geometry, 24),
+      new THREE.LineBasicMaterial({ color: 0x5d7d99, transparent: true, opacity: 0.45, depthWrite: false })
+    );
+    line.renderOrder = 5;
+    o.add(line);
+  }));
+
+  if (qNoNeighbor) { btnNeighbor.classList.remove('on'); neighbors.forEach(n => n.visible = false); }
+  if (qDusk) btnDusk.classList.add('on');
+
+  document.getElementById('load').classList.add('hide');
+}, (e) => {
+  document.getElementById('load').textContent = '模型载入失败：' + e;
+});
+
+// ---- 交互 -------------------------------------------------------------
+btnNeighbor.onclick = () => {
+  const show = !btnNeighbor.classList.contains('on');
+  btnNeighbor.classList.toggle('on', show);
+  neighbors.forEach(n => n.visible = show);
+};
+btnDusk.onclick = () => {
+  const on = !btnDusk.classList.contains('on');
+  btnDusk.classList.toggle('on', on);
+  applyPreset(on);
+};
+btnRotate.onclick = () => {
+  const on = !btnRotate.classList.contains('on');
+  btnRotate.classList.toggle('on', on);
+  controls.autoRotate = on;
+};
+
+// ---- 视角 -------------------------------------------------------------
+let camTween = null;
+function flyTo(pos, tgt, ms){
+  camTween = { t: 0, ms: ms || 780,
+    p0: camera.position.clone(), p1: new THREE.Vector3(pos[0], pos[1], pos[2]),
+    t0: controls.target.clone(), t1: new THREE.Vector3(tgt[0], tgt[1], tgt[2]) };
+}
+const ease = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+
+function setView(id){
+  ['btnV1','btnV2','btnV3'].forEach(k => document.getElementById(k).classList.toggle('on', k === id));
+}
+document.getElementById('btnV1').onclick = () => { setView('btnV1'); flyTo([74,43,82],[0,10,0]); };
+document.getElementById('btnV2').onclick = () => { setView('btnV2'); flyTo([9,1.75,50],[0,13.0,0]); };
+document.getElementById('btnV3').onclick = () => { setView('btnV3'); flyTo([0,11.5,88],[0,11.5,0]); };
+
+// ---- 点击高亮楼层 ------------------------------------------------------
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let picked = null;
+
+function findFloorNode(o){ let p = o; while (p) { if ((p.name||'').startsWith('Floor_')) return p; p = p.parent; } return null; }
+function setEmissive(node, hex){
+  if (!node) return;
+  node.traverse(o => {
+    if (o.isMesh && o.material && o.material.emissive) o.material.emissive.setHex(hex);
+  });
+}
+
+renderer.domElement.addEventListener('pointerdown', (ev) => {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+  ndc.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(floors, true);
+  const pickNode = hits.length ? findFloorNode(hits[0].object) : null;
+
+  if (picked === pickNode) { setEmissive(picked, 0x000000); picked = null; return; }
+  setEmissive(picked, 0x000000);
+  picked = pickNode;
+  setEmissive(picked, 0x3d2a10);
+  if (picked) hint.classList.add('gone');
+});
+
+// ---- 循环 -------------------------------------------------------------
+const clock = new THREE.Clock();
+function tick(){
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (camTween){
+    camTween.t += dt * 1000;
+    const k = ease(Math.min(camTween.t / camTween.ms, 1));
+    camera.position.lerpVectors(camTween.p0, camTween.p1, k);
+    controls.target.lerpVectors(camTween.t0, camTween.t1, k);
+    if (k >= 1) camTween = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+tick();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
